@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>健康知識賽道英雄 - 視覺優化穩定版</title>
+<style>
+/* 視覺風格：職業賽道 */
+:root { 
+    --line-yellow: #FDE047; --danger: #F43F5E; --success: #10B981; --accent: #FB923C; 
+    --panel-bg: rgba(7, 10, 15, 0.98);
+}
+body { 
+    font-family: 'Segoe UI', 'PingFang TC', sans-serif; background: #020617; 
+    margin: 0; overflow: hidden; color: white; display: flex; height: 100vh; width: 100vw;
+}
+.game-container { display: flex; width: 100%; height: 100%; background: linear-gradient(to bottom, #1e1b4b, #431407); }
+
+/* 左側儀表板 */
+.side-panel { 
+    width: 280px; background: var(--panel-bg); border-right: 2px solid var(--accent); 
+    display: flex; flex-direction: column; padding: 25px; box-sizing: border-box;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5); z-index: 100;
+}
+.hud-item { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 4px solid var(--accent); }
+.label { font-size: 0.7rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 2px; display: block; }
+.value { font-size: 1.5rem; font-family: 'Courier New', monospace; font-weight: bold; color: #FFF; text-shadow: 0 0 10px var(--accent); }
+
+/* 右側賽道區 */
+.road-area { flex: 1; position: relative; background: #1e293b; overflow: hidden; display: flex; flex-direction: column; transition: background 0.8s ease; }
+
+/* --- 關卡底圖視覺優化區 --- */
+
+/* 1. 城市公園：櫻花像樹木一樣固定在背景底圖上 */
+.theme-park { 
+    background: linear-gradient(to bottom, #a7f3d0 0%, #22c55e 50%, #064e3b 100%) !important; 
+}
+.theme-park::before { 
+    content: "🌸  🌸  🌸  🌸  🌸"; position: absolute; width: 100%; text-align: center; top: 35%; 
+    font-size: 3rem; opacity: 0.25; color: #ffb7c5; z-index: 1; letter-spacing: 80px;
+}
+
+/* 2. 黃昏公路：樹木剪影與落日 */
+.theme-highway { 
+    background: linear-gradient(to bottom, #fdba74 0%, #f97316 30%, #7c2d12 60%, #1c0a00 100%) !important; 
+}
+.theme-highway::before { 
+    content: "🌲  🌲  🌲  🌲  🌲"; position: absolute; width: 100%; text-align: center; top: 35%; 
+    font-size: 3rem; opacity: 0.15; color: #000; z-index: 1; letter-spacing: 80px;
+}
+.theme-highway::after { 
+    content: ""; position: absolute; width: 100%; height: 100%; 
+    background: radial-gradient(circle at 50% 25%, rgba(255, 255, 255, 0.4) 0%, transparent 45%); 
+    z-index: 1;
+}
+
+/* 3. 霓虹賽道：霓虹流光 */
+.theme-cyber { 
+    background: linear-gradient(to bottom, #1e1b4b 0%, #312e81 40%, #020617 100%) !important; 
+}
+.theme-cyber::before { 
+    content: "🏙️ 🏢 🏙️"; position: absolute; width: 100%; text-align: center; top: 5%; 
+    font-size: 3rem; opacity: 0.15; filter: drop-shadow(0 0 10px #c026d3); z-index: 1;
+}
+.theme-cyber .road-visuals::before, .theme-cyber .road-visuals::after { 
+    background: linear-gradient(to bottom, #06b6d4, #c026d3, #06b6d4) !important;
+    background-size: 100% 200% !important;
+    animation: neonFlow 1.5s linear infinite !important;
+    box-shadow: 0 0 25px #c026d3;
+    border: 2px solid #fff !important;
+}
+@keyframes neonFlow { from { background-position: 0% 0%; } to { background-position: 0% 100%; } }
+
+.q-display { 
+    background: #000; border: 3px solid var(--accent); border-radius: 4px; padding: 15px; 
+    margin: 15px auto; width: 90%; min-height: 85px; z-index: 50;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 1.25rem; font-weight: 800; color: #FFF; box-shadow: 0 0 20px rgba(251, 146, 60, 0.4);
+}
+.road-visuals { flex: 1; position: relative; width: 100%; overflow: hidden; z-index: 5; }
+.road-stripes { 
+    position: absolute; width: 6px; height: 200%; left: calc(50% - 3px); top: -100%;
+    background: repeating-linear-gradient(to bottom, transparent 0, transparent 60px, rgba(255,255,255,0.2) 60px, rgba(255,255,255,0.2) 120px);
+}
+
+/* 反饋特效 */
+.feedback-overlay {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 10rem; font-weight: bold; z-index: 200; pointer-events: none; opacity: 0;
+}
+.feedback-correct { color: var(--success); text-shadow: 0 0 20px var(--success); }
+.feedback-wrong { color: var(--danger); text-shadow: 0 0 20px var(--danger); }
+@keyframes feedbackPop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
+.theme-park .road-visuals::before, .theme-park .road-visuals::after { content:""; position:absolute; top:0; bottom:0; width:50px; background:#064E3B; border:2px solid #10B981; z-index:10; }
+.theme-highway .road-visuals::before, .theme-highway .road-visuals::after { content:""; position:absolute; top:0; bottom:0; width:50px; background:#7C2D12; border:2px solid #F59E0B; z-index:10; }
+.theme-cyber .road-visuals::before, .theme-cyber .road-visuals::after { content:""; position:absolute; top:0; bottom:0; width:50px; background:#1e1b4b; border:2px solid #C026D3; z-index:10; }
+.road-visuals::before { left: 0; } .road-visuals::after { right: 0; }
+
+#car { position: absolute; bottom: 40px; font-size: 5rem; width: 33.3%; text-align: center; z-index: 100; transition: left 0.15s; }
+.ans-gate { 
+    position: absolute; width: 31%; height: 95px; margin: 0 1%; display: flex; align-items: center; 
+    justify-content: center; background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 1)); 
+    border: 2px solid rgba(255,255,255,0.2); border-radius: 4px; font-weight: bold; text-align: center; color: white; padding: 5px; box-sizing: border-box;
+}
+
+/* 覆蓋層與彈窗 */
+.overlay { 
+    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.96); backdrop-filter: blur(10px); 
+    z-index: 1000; display: flex; flex-direction: column; align-items: center; 
+    padding: 40px 20px; text-align: center; overflow-y: auto; 
+}
+.overlay-content { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 1100px; padding-bottom: 50px; }
+
+.btn { padding: 18px 60px; border-radius: 4px; border: none; background: linear-gradient(to right, #FB923C, #F97316); color: white; cursor: pointer; font-weight: 900; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 3px; margin: 15px; }
+
+/* 錯題檢討區 */
+.review-list { 
+    text-align: left; width: 100%; background: rgba(255, 255, 255, 0.03); 
+    padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #444; 
+}
+.review-item {
+    background: #000; padding: 15px 25px; margin-bottom: 12px; border-radius: 4px;
+    border-left: 8px solid var(--danger); font-size: 1.1rem; line-height: 1.6;
+}
+
+.rank-table { width: 100%; max-width: 600px; margin: 20px 0; border-collapse: collapse; background: #111; color: white; }
+.rank-table th, .rank-table td { padding: 15px; border: 1px solid #333; text-align: center; }
+
+/* 車款選擇器 */
+.car-selector { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+.car-option { 
+    font-size: 2.5rem; padding: 10px; border: 2px solid #444; border-radius: 8px; 
+    cursor: pointer; background: rgba(255,255,255,0.05); transition: 0.3s;
+}
+.car-option.selected { border-color: var(--accent); background: rgba(251, 146, 60, 0.2); transform: scale(1.1); box-shadow: 0 0 15px var(--accent); }
+
+.info-text { max-width: 700px; line-height: 2; font-size: 1.2rem; text-align: left; margin-bottom: 30px; color: #cbd5e1; }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+    <div class="side-panel">
+        <h2 style="color: var(--accent); letter-spacing: 3px;">HEALTH HERO</h2>
+        <div class="hud-item"><span class="label">當前區域</span><span class="value" id="ui-lv-name">城市公園</span></div>
+        <div class="hud-item"><span class="label">賽段進度</span><span class="value" id="ui-progress">0 / 10</span></div>
+        <div class="hud-item"><span class="label">倒數計時</span><span class="value" id="ui-tm">70</span></div>
+        <div class="hud-item"><span class="label">里程得分</span><span class="value" id="ui-sc">0</span></div>
+        <div style="flex: 1;"></div>
+        <p style="font-size: 0.7rem; color: #475569;">MOVE: ARROW KEYS</p>
+    </div>
+
+    <div class="road-area theme-park" id="road-main">
+        <div id="feedback-correct" class="feedback-overlay feedback-correct">✓</div>
+        <div id="feedback-wrong" class="feedback-overlay feedback-wrong">✘</div>
+
+        <div class="q-display" id="q-text">ENGINE READY...</div>
+        <div class="road-visuals" id="road-visuals">
+            <div class="road-stripes" id="stripes"></div>
+            <div id="car">🏎️</div>
+        </div>
+
+        <!-- 第一層：遊戲說明 -->
+        <div id="info-ui" class="overlay">
+            <div class="overlay-content">
+                <h1 style="letter-spacing: 5px; color: var(--accent); font-size: 3rem;">遊戲說明</h1>
+                <div class="info-text">
+                    • <b>挑戰目標</b>：在時限內衝過正確答案的門檻，累積最高里程分數。<br>
+                    • <b>操作方式</b>：使用鍵盤左右方向鍵（← →）切換賽道。<br>
+                    • <b>關卡設定</b>：共有三關，提前作答完 10 題即可進入下一關。<br>
+                    • <b>得分規則</b>：答對加 100 分，答錯扣 50 分。<br>
+                    • <b>時限調整</b>：簡單(70s) ➔ 中等(60s) ➔ 進階(50s)。
+                </div>
+                <button class="btn" onclick="closeInfo()">我了解了</button>
+            </div>
+        </div>
+
+        <!-- 第二層：初始設定 -->
+        <div id="start-ui" class="overlay" style="display:none;">
+            <div class="overlay-content">
+                <h1 style="letter-spacing: 8px; font-size: 3.5rem;">RACING LEAGUE</h1>
+                
+                <p style="font-size: 1.5rem; margin-top: 30px;">選擇您的座駕</p>
+                <div class="car-selector">
+                    <div class="car-option selected" onclick="selectCar('🏎️', this)">🏎️</div>
+                    <div class="car-option" onclick="selectCar('🚓', this)">🚓</div>
+                    <div class="car-option" onclick="selectCar('🚀', this)">🚀</div>
+                    <div class="car-option" onclick="selectCar('🚛', this)">🚛</div>
+                </div>
+
+                <input type="text" id="player-name" maxlength="10" placeholder="輸入名號 (僅限一次)" style="padding: 15px; font-size: 1.5rem; width: 350px; border-radius: 8px; border: 2px solid var(--accent); background: #000; color: white; text-align: center; margin: 30px 0;">
+                
+                <p style="font-size: 1.2rem;">設定賽車速度: <span id="speed-label" style="color:var(--accent); font-weight:bold;">2.0</span></p>
+                <input type="range" id="speed-slider" min="1.0" max="3.0" step="0.1" value="2.0" oninput="document.getElementById('speed-label').innerText=this.value" style="width: 350px; cursor: pointer; accent-color: var(--accent);">
+                
+                <button class="btn" onclick="checkStart()">START RACE</button>
+                <div id="rank-display"></div>
+            </div>
+        </div>
+
+        <!-- 換關提示 -->
+        <div id="stage-up-ui" class="overlay" style="display:none;">
+            <div class="overlay-content">
+                <h1 style="color: var(--success); letter-spacing: 5px; font-size: 3rem;">STAGE CLEAR!</h1>
+                <p id="stage-up-msg" style="font-size: 1.5rem; margin: 20px 0;"></p>
+                <button class="btn" onclick="proceedToNextStage()">進入下一賽段</button>
+            </div>
+        </div>
+
+        <!-- 結算畫面 -->
+        <div id="end-ui" class="overlay" style="display:none;">
+            <div class="overlay-content">
+                <h1 id="end-title" style="font-size: 3rem; color: var(--accent);">MISSION COMPLETE</h1>
+                <p id="end-score-text" style="font-size: 2rem; margin: 10px 0; border-bottom: 2px solid #444; padding-bottom: 10px; width: 80%;"></p>
+                <div id="review-area" class="review-list"></div>
+                <div id="final-rank-display" style="width:100%; display:flex; justify-content:center;"></div>
+                <button class="btn" style="margin-top: 30px;" onclick="location.reload()">RESTART CHALLENGE</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const STAGES_DATA = [
+    { name: "城市公園 (簡單)", theme: "theme-park", timeLimit: 70, extraSpeed: 0,
+      qs: [
+        {q:"勤洗手是預防哪種疾病的首要方式？", a:["腸病毒", "近視", "過敏"], c:0},
+        {q:"用眼多久應休息10分鐘？", a:["30分鐘", "1小時", "2小時"], c:0},
+        {q:"「天天五蔬果」建議份數，成年女性為？", a:["3蔬2果", "4蔬3果", "2蔬3果"], c:0},
+        {q:"預防蛀牙，睡前最重要應？", a:["喝含糖奶", "氟化物牙膏刷牙", "吃水果"], c:1},
+        {q:"飯前洗手的目的是預防？", a:["病從口入", "眼睛發炎", "手部乾燥"], c:0},
+        {q:"青少年每日建議睡眠時數？", a:["5-6小時", "8-10小時", "12小時"], c:1},
+        {q:"下列哪種屬於有氧運動？", a:["快走", "舉重", "拉筋"], c:0},
+        {q:"預防肥胖應主要限制哪種攝取？", a:["精緻糖", "膳食纖維", "純水"], c:0},
+        {q:"打噴嚏或咳嗽時，應優先遮住？", a:["口鼻", "眼睛", "耳朵"], c:0},
+        {q:"下列哪種飲品對身體負擔最輕？", a:["珍珠奶茶", "白開水", "運動飲料"], c:1}
+      ]
+    },
+    { name: "黃昏公路 (中等)", theme: "theme-highway", timeLimit: 60, extraSpeed: 0.5,
+      qs: [
+        {q:"好的膽固醇（血管清道夫）是指？", a:["LDL", "HDL", "VLDL"], c:1},
+        {q:"代謝症候群指標中，男性腰圍應小於？", a:["80cm", "90cm", "100cm"], c:1},
+        {q:"「得舒飲食(DASH)」主要針對哪種疾病？", a:["高血壓", "糖尿病", "胃潰瘍"], c:0},
+        {q:"空腹血糖正常值應低於多少 mg/dL？", a:["100", "126", "200"], c:0},
+        {q:"長期攝取過多的「鈉」會增加什麼風險？", a:["高血壓", "貧血", "氣喘"], c:0},
+        {q:"哪種油脂富含 Omega-3，對心血管較佳？", a:["深海魚油", "椰子油", "奶油"], c:0},
+        {q:"判斷肥胖的指標 BMI 計算公式？", a:["體重/身高", "體重/身高平方", "身高-體重"], c:1},
+        {q:"二手菸會增加罹患哪種病的風險？", a:["肺癌與心臟病", "近視", "香港腳"], c:0},
+        {q:"健康體位的 BMI 建議範圍是？", a:["18.5-24", "24-27", "27-30"], c:0},
+        {q:"每日建議食鹽攝取量不超過多少公克？", a:["3公克", "6公克", "12公克"], c:1}
+      ]
+    },
+    { name: "霓虹賽道 (進階)", theme: "theme-cyber", timeLimit: 50, extraSpeed: 1.0,
+      qs: [
+        {q:"中風口訣 FAST 中的 'A' 是什麼意思？", a:["發燒(Ache)", "手臂無力(Arm)", "腹痛"], c:1},
+        {q:"糖化血色素(HbA1c)正常應低於多少？", a:["5.7%", "7.0%", "9.0%"], c:0},
+        {q:"AED 的中文名稱是什麼？", a:["心律記錄器", "自動體外心臟電擊去顫器", "人工呼吸器"], c:1},
+        {q:"心肌梗塞常見的徵兆？", a:["胸口壓迫性劇痛", "小腿抽筋", "眼皮跳"], c:0},
+        {q:"正常成年人的收縮壓應低於？", a:["120 mmHg", "140 mmHg", "160 mmHg"], c:0},
+        {q:"乳癌篩檢目前最有效的工具是？", a:["乳房攝影", "自我觸摸", "超音波"], c:0},
+        {q:"成人健檢幾歲開始提供 3 年一次免費服務？", a:["20歲", "40歲", "65歲"], c:1},
+        {q:"慢性腎臟病患者應注意限制攝取？", a:["蛋白質與鈉", "纖維素", "維生素C"], c:0},
+        {q:"子宮頸癌預防最重要的檢查是？", a:["抹片檢查", "驗尿", "X光"], c:0},
+        {q:"中風口訣 FAST 中的 'T' 代表什麼？", a:["量體溫", "爭取時間", "測試視力"], c:1}
+      ]
+    }
+];
+
+let baseSpeed = 2.0, currentStageIdx = 0, activeGates = [], animRef, timerRef;
+let gameState = { active: false, score: 0, timeLeft: 0, qIdx: 0, lane: 1, wrongs: [], playerName: "", selectedCar: '🏎️' };
+
+window.onload = () => updateRankDisplay('rank-display');
+
+function closeInfo() { document.getElementById('info-ui').style.display = 'none'; document.getElementById('start-ui').style.display = 'flex'; }
+
+function selectCar(icon, el) {
+    gameState.selectedCar = icon;
+    document.querySelectorAll('.car-option').forEach(opt => opt.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('car').innerText = icon;
+}
+
+function checkStart() {
+    const name = document.getElementById('player-name').value.trim();
+    if(!name) return alert("請輸入名號以參賽！");
+    gameState.playerName = name;
+    baseSpeed = parseFloat(document.getElementById('speed-slider').value);
+    document.getElementById('start-ui').style.display = 'none';
+    initStage();
+}
+
+function initStage() {
+    const config = STAGES_DATA[currentStageIdx];
+    const roadArea = document.getElementById('road-main');
+    roadArea.className = "road-area " + config.theme;
+    document.getElementById('ui-lv-name').innerText = config.name;
+    gameState.active = true; gameState.qIdx = 0; gameState.timeLeft = config.timeLimit;
+    updateHUD(); spawnQuestion(); gameLoop();
+    clearInterval(timerRef);
+    timerRef = setInterval(() => {
+        gameState.timeLeft--; document.getElementById('ui-tm').innerText = gameState.timeLeft;
+        if(gameState.timeLeft <= 0) endGame("時間耗盡！");
+    }, 1000);
+}
+
+function spawnQuestion() {
+    const config = STAGES_DATA[currentStageIdx];
+    if(gameState.qIdx >= 10) {
+        stopLoop(); clearInterval(timerRef);
+        if(currentStageIdx < 2) {
+            document.getElementById('stage-up-ui').style.display = 'flex';
+            document.getElementById('stage-up-msg').innerText = `已提前征服賽道：【${config.name}】`;
+        } else { endGame("聯賽總冠軍！"); }
+        return;
+    }
+    const qData = config.qs[gameState.qIdx];
+    document.getElementById('q-text').innerText = qData.q;
+    document.getElementById('ui-progress').innerText = `${gameState.qIdx + 1} / 10`;
+    let pos = [0, 1, 2].sort(() => Math.random() - 0.5);
+    pos.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'ans-gate'; div.style.left = (i * 33.3) + '%'; div.style.top = '-120px';
+        div.innerText = qData.a[p]; document.getElementById('road-visuals').appendChild(div);
+        activeGates.push({ el: div, isCorrect: p === qData.c, qText: qData.q, correctAns: qData.a[qData.c] });
+    });
+}
+
+function proceedToNextStage() { document.getElementById('stage-up-ui').style.display = 'none'; currentStageIdx++; initStage(); }
+
+function gameLoop() {
+    if(!gameState.active) return;
+    const speed = baseSpeed + STAGES_DATA[currentStageIdx].extraSpeed;
+    const stripes = document.getElementById('stripes');
+    let y = (parseFloat(stripes.dataset.y) || 0) + speed;
+    stripes.style.transform = `translateY(${y % 120}px)`; stripes.dataset.y = y;
+    const roadH = document.getElementById('road-visuals').offsetHeight;
+    for(let i = activeGates.length - 1; i >= 0; i--) {
+        let gate = activeGates[i]; let top = parseFloat(gate.el.style.top); top += speed; gate.el.style.top = top + 'px';
+        if(top > roadH - 180 && top < roadH - 100) {
+            if(gameState.lane === Math.floor(parseFloat(gate.el.style.left)/33)) { handleAnswer(gate); return; }
+        }
+        if(top > roadH + 100) { gate.el.remove(); activeGates.splice(i, 1); if(activeGates.length === 0) spawnQuestion(); }
+    }
+    animRef = requestAnimationFrame(gameLoop);
+}
+
+function handleAnswer(hitGate) {
+    if(hitGate.isCorrect) { gameState.score += 100; showFeedback('feedback-correct'); }
+    else { gameState.score = Math.max(0, gameState.score - 50); gameState.wrongs.push({ q: hitGate.qText, a: hitGate.correctAns }); showFeedback('feedback-wrong'); }
+    updateHUD(); activeGates.forEach(g => g.el.remove()); activeGates = []; gameState.qIdx++; gameState.active = false; 
+    setTimeout(() => { if(gameState.active === false) { gameState.active = true; spawnQuestion(); gameLoop(); } }, 600);
+}
+
+function showFeedback(id) { const el = document.getElementById(id); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = 'feedbackPop 0.5s forwards'; }
+function stopLoop() { gameState.active = false; cancelAnimationFrame(animRef); activeGates.forEach(g => g.el.remove()); activeGates = []; }
+function updateHUD() { document.getElementById('ui-tm').innerText = gameState.timeLeft; document.getElementById('ui-sc').innerText = gameState.score; }
+
+function endGame(title) {
+    stopLoop(); clearInterval(timerRef);
+    document.getElementById('end-ui').style.display = 'flex';
+    document.getElementById('end-title').innerText = title;
+    document.getElementById('end-score-text').innerText = `最終累積里程：${gameState.score} km`;
+    const area = document.getElementById('review-area');
+    if(gameState.wrongs.length > 0) {
+        area.innerHTML = "<h3 style='margin:0 0 15px 0; color:var(--accent); font-size:1.8rem;'>🏁 錯題檢討</h3>" + gameState.wrongs.map(w => `<div class="review-item"><span style="color:#94A3B8; font-weight:bold;">問：</span>${w.q}<br><span style="color:var(--success); font-weight:bold;">正解：</span>${w.a}</div>`).join('');
+    } else { area.innerHTML = "<p style='color:var(--success); font-weight:bold; text-align:center; font-size:2rem; margin: 40px 0;'>🏆 完美駕駛！全線無誤！</p>"; }
+    saveToRanking(); updateRankDisplay('final-rank-display');
+}
+
+function saveToRanking() {
+    let ranks = JSON.parse(localStorage.getItem('healthHeroRanks') || "[]");
+    let idx = ranks.findIndex(r => r.name === gameState.playerName);
+    if(idx !== -1) { if(gameState.score > ranks[idx].score) ranks[idx].score = gameState.score; }
+    else { ranks.push({ name: gameState.playerName, score: gameState.score }); }
+    ranks.sort((a,b) => b.score - a.score); localStorage.setItem('healthHeroRanks', JSON.stringify(ranks.slice(0, 10)));
+}
+
+function updateRankDisplay(elementId) {
+    let ranks = JSON.parse(localStorage.getItem('healthHeroRanks') || "[]");
+    let html = "<h3 style='font-size:1.8rem; color:var(--accent); margin-bottom:10px;'>TOP 5 聯賽排行榜</h3><table class='rank-table'><tr><th>RANK</th><th>NAME</th><th>SCORE</th></tr>";
+    ranks.slice(0, 5).forEach((r, i) => html += `<tr><td>${i+1}</td><td>${r.name}</td><td>${r.score}</td></tr>`);
+    html += "</table>"; document.getElementById(elementId).innerHTML = html;
+}
+
+window.onkeydown = (e) => {
+    if(e.key === "ArrowLeft" && gameState.lane > 0) gameState.lane--;
+    if(e.key === "ArrowRight" && gameState.lane < 2) gameState.lane++;
+    document.getElementById('car').style.left = (gameState.lane * 33.3) + '%';
+};
+</script>
+</body>
+</html>
